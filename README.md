@@ -1,2 +1,2 @@
 # med_ai_app
-med ai app for amd slingshot hackathon by Team 
+med ai app for amd slingshot hackathon by Team Band of Hawks
