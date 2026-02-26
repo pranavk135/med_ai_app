@@ -1,0 +1,345 @@
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Send,
+  Bot,
+  Sparkles,
+  ChevronRight,
+  Mic,
+  User,
+  HeartPulse,
+  History,
+  ClipboardList,
+  Stethoscope,
+} from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { useNavigate } from "react-router-dom";
+
+type Analysis = {
+  severity: "Low" | "Moderate" | "High" | "Critical";
+  score: number;
+  summary: string;
+  steps: string[];
+  specialist: {
+    name: string;
+    type: string;
+    rating: string;
+    image: string;
+  };
+};
+
+export function HealthAI() {
+  const navigate = useNavigate();
+
+  const [messages, setMessages] = useState([
+    {
+      role: "assistant",
+      content:
+        "Hello! I'm your CareFlow AI Health Assistant. How can I help you today?",
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    },
+  ]);
+
+  const [input, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
+  const [analysis, setAnalysis] = useState<Analysis | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [messages, isTyping]);
+
+  //  Backend API call
+  const analyzeHealth = async (text: string) => {
+    const res = await fetch("http://localhost:8000/analyze-health", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        user_id: "demo-user-1",
+        message: text,
+      }),
+    });
+
+  if (!res.ok) throw new Error("Server error");
+
+  return await res.json();
+};
+
+  // Handle Send
+  const handleSend = async () => {
+  if (!input.trim()) return;
+
+  const userMsg = {
+    role: "user",
+    content: input,
+    timestamp: new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  };
+
+  setMessages((prev) => [...prev, userMsg]);
+
+  const currentInput = input;
+  setInput("");
+  setIsTyping(true);
+
+  try {
+    const result = await analyzeHealth(currentInput);
+    setIsTyping(false);
+
+    // 🔹 If AI still gathering info
+    if (!result.ready) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: result.reply,
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        },
+      ]);
+      return;
+    }
+
+    // 🔹 If AI completed analysis
+    setAnalysis({
+      severity: result.severity,
+      score: 0,
+      summary: result.summary,
+      steps: result.steps,
+      specialist: {
+        name: result.specialist.name,
+        type: result.specialist.type,
+        rating: result.specialist.rating,
+        image:
+          "https://images.unsplash.com/photo-1559839734-2b71ea197ec2",
+      },
+    });
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content:
+          "Thank you for the details. I've completed your assessment. Please review the panel.",
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      },
+    ]);
+
+    // Auto redirect if Critical
+    if (result.severity === "Critical") {
+      navigate("/emergency", { state: { autoData: result } });
+    }
+  } catch {
+    setIsTyping(false);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant",
+        content: "AI service is currently unavailable.",
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      },
+    ]);
+  }
+};
+
+  return (
+    <div className="h-full flex flex-col lg:flex-row gap-6">
+      {/* Chat Section */}
+      <div className="flex-1 flex flex-col bg-white rounded-3xl border shadow-sm overflow-hidden min-h-[500px]">
+        <header className="px-6 py-4 border-b flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+              <Bot size={22} />
+            </div>
+            <div>
+              <h3 className="font-bold text-neutral-900">CareFlow AI</h3>
+              <span className="text-xs text-neutral-500">
+                AI Assistant is active
+              </span>
+            </div>
+          </div>
+          <button className="p-2 text-neutral-400 hover:text-neutral-600 rounded-full">
+            <History size={20} />
+          </button>
+        </header>
+
+        {/* Messages */}
+        <div
+          ref={scrollRef}
+          className="flex-1 overflow-y-auto p-6 space-y-6 bg-neutral-50/30"
+        >
+          {messages.map((msg, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className={cn(
+                "flex gap-3 max-w-[85%]",
+                msg.role === "user" ? "ml-auto flex-row-reverse" : ""
+              )}
+            >
+              <div
+                className={cn(
+                  "w-8 h-8 rounded-full flex items-center justify-center mt-1",
+                  msg.role === "user"
+                    ? "bg-black text-white"
+                    : "bg-blue-600 text-white"
+                )}
+              >
+                {msg.role === "user" ? (
+                  <User size={16} />
+                ) : (
+                  <Sparkles size={16} />
+                )}
+              </div>
+              <div className="space-y-1">
+                <div
+                  className={cn(
+                    "px-4 py-3 rounded-2xl text-sm shadow-sm",
+                    msg.role === "user"
+                      ? "bg-black text-white rounded-tr-none"
+                      : "bg-white border rounded-tl-none"
+                  )}
+                >
+                  {msg.content}
+                </div>
+                <p className="text-[10px] text-neutral-400">
+                  {msg.timestamp}
+                </p>
+              </div>
+            </motion.div>
+          ))}
+
+          {isTyping && (
+            <div className="flex gap-3 max-w-[85%]">
+              <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                <Sparkles size={16} />
+              </div>
+              <div className="bg-white border px-4 py-3 rounded-2xl">
+                {isTyping && (
+  <div className="flex gap-3 max-w-[85%]">
+    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
+      <Sparkles size={16} />
+    </div>
+    <div className="bg-white border px-4 py-3 rounded-2xl animate-pulse">
+      CareFlow AI is thinking...
+    </div>
+  </div>
+)}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Input */}
+        <div className="p-4 border-t bg-white">
+          <div className="relative flex items-center">
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              placeholder="Describe your symptoms..."
+              className="w-full bg-neutral-50 border rounded-2xl pl-4 pr-20 py-4 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!input.trim()}
+              className="absolute right-2 p-2 bg-blue-600 text-white rounded-xl"
+            >
+              <Send size={20} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Analysis Panel */}
+      <AnimatePresence>
+        {analysis && (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="hidden xl:flex flex-col w-[400px] bg-white rounded-3xl border shadow-sm overflow-hidden"
+          >
+            <div
+              className={cn(
+                "p-6 text-white",
+                analysis.severity === "Critical"
+                  ? "bg-red-600"
+                  : analysis.severity === "Moderate"
+                  ? "bg-blue-600"
+                  : "bg-neutral-900"
+              )}
+            >
+              <h3 className="text-xl font-bold">Health Assessment</h3>
+            </div>
+
+            <div className="p-6 space-y-6 overflow-y-auto">
+              <div>
+                <p className="text-sm font-bold mb-2">
+                  Severity: {analysis.severity}
+                </p>
+                <p className="text-sm text-neutral-600">
+                  {analysis.summary}
+                </p>
+              </div>
+
+              <div>
+                <h4 className="font-bold mb-3 flex items-center gap-2">
+                  <ClipboardList size={16} /> Recommended Actions
+                </h4>
+                <ul className="space-y-2">
+                  {analysis.steps.map((step, idx) => (
+                    <li key={idx} className="text-sm text-neutral-600">
+                      {idx + 1}. {step}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-bold mb-3 flex items-center gap-2">
+                  <Stethoscope size={16} /> Suggested Specialist
+                </h4>
+                <div className="flex items-center gap-3">
+                  <ImageWithFallback
+                    src={analysis.specialist.image}
+                    alt="Doctor"
+                  />
+                  <div>
+                    <p className="font-bold text-sm">
+                      {analysis.specialist.name}
+                    </p>
+                    <p className="text-xs text-neutral-500">
+                      {analysis.specialist.type} •{" "}
+                      {analysis.specialist.rating}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(" ");
+}
