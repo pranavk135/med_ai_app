@@ -14,6 +14,7 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "../supabaseClient";
 
 type Analysis = {
   severity: "Low" | "Moderate" | "High" | "Critical";
@@ -56,14 +57,18 @@ export function HealthAI() {
 
   //  Backend API call
   const analyzeHealth = async (text: string) => {
-    const res = await fetch("http://localhost:8000/analyze-health", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        user_id: "demo-user-1",
-        message: text,
-      }),
-    });
+  const { data: { session } } = await supabase.auth.getSession();
+
+  const res = await fetch("http://localhost:8000/analyze-health", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${session?.access_token}`
+    },
+    body: JSON.stringify({
+      message: text,
+    }),
+  });
 
   if (!res.ok) throw new Error("Server error");
 
@@ -317,10 +322,10 @@ export function HealthAI() {
                   <Stethoscope size={16} /> Suggested Specialist
                 </h4>
                 <div className="flex items-center gap-3">
-                  <ImageWithFallback
-                    src={analysis.specialist.image}
-                    alt="Doctor"
-                  />
+                  <ImageWithFallback 
+                      src={analysis.specialist.image} 
+                      alt="Doctor" 
+                    />
                   <div>
                     <p className="font-bold text-sm">
                       {analysis.specialist.name}

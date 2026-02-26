@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useLocation } from "react-router-dom";
+import { supabase } from "../supabaseClient";
 
 const EMERGENCY_TYPES = [
   { id: "Chest Pain / Cardiac", label: "Chest Pain / Cardiac", icon: Heart },
@@ -49,22 +50,27 @@ export function EmergencyAssistant() {
   };
 
   const analyzeEmergency = async (message: string) => {
-    const loc = await getLocation();
+  const loc = await getLocation();
 
-    const res = await fetch("http://localhost:8000/analyze-emergency", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        message,
-        latitude: loc.lat,
-        longitude: loc.lng,
-      }),
-    });
+  const { data: { session } } = await supabase.auth.getSession();
 
-    if (!res.ok) throw new Error("Server error");
+  const res = await fetch("http://localhost:8000/analyze-emergency", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${session?.access_token}`
+    },
+    body: JSON.stringify({
+      message,
+      latitude: loc.lat,
+      longitude: loc.lng,
+    }),
+  });
 
-    return await res.json();
-  };
+  if (!res.ok) throw new Error("Server error");
+
+  return await res.json();
+};
 
   useEffect(() => {
     if (autoData) {

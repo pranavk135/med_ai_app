@@ -82,11 +82,11 @@ export function Dashboard() {
             </div>
           </div>
           <div className="relative w-full max-w-[320px] aspect-square rounded-[3rem] overflow-hidden shadow-2xl ring-8 ring-white/5 group">
-            <ImageWithFallback 
-              src="https://images.unsplash.com/photo-1576091160550-2173dad99901?w=600&h=600&fit=crop" 
-              alt="Health tracker" 
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
-            />
+          <ImageWithFallback 
+                        src="https://images.unsplash.com/photo-1576091160550-2173dad99901?w=600&h=600&fit=crop" 
+                        alt="Health tracker" 
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000"
+                      />
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
             <div className="absolute bottom-6 left-6 right-6 p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10">
               <div className="flex items-center justify-between">

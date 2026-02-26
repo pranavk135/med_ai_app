@@ -278,9 +278,9 @@ export function Telemedicine() {
                   <div key={i} className="bg-white border border-neutral-100 rounded-[2.5rem] p-8 shadow-sm hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-100/50 transition-all group flex flex-col md:flex-row items-center justify-between cursor-pointer gap-6">
                     <div className="flex items-center gap-8 w-full">
                       <div className="w-24 h-24 rounded-3xl overflow-hidden shadow-xl flex-shrink-0 border-4 border-white ring-1 ring-neutral-100">
-                        <ImageWithFallback 
-                          src={p.image} 
-                          alt={p.name} 
+                      <ImageWithFallback 
+                        src={p.image} 
+                        alt={p.name} 
                         />
                       </div>
                       <div className="space-y-2 flex-1">
