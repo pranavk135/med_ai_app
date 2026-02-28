@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes import health, emergency, ocr
+from app.routes import health, emergency, ocr, auth
 
 app = FastAPI(title="CareFlow AI")
 
@@ -12,6 +12,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router, prefix="/auth")
 app.include_router(health.router)
 app.include_router(emergency.router)
 app.include_router(ocr.router)

@@ -15,8 +15,8 @@ import {
   Siren,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { useLocation } from "react-router-dom";
-import { supabase } from "../supabaseClient";
+import { useLocation } from "react-router";
+import { supabase, backendUrl } from "../supabaseClient";
 
 const EMERGENCY_TYPES = [
   { id: "Chest Pain / Cardiac", label: "Chest Pain / Cardiac", icon: Heart },
@@ -49,32 +49,70 @@ export function EmergencyAssistant() {
     });
   };
 
+  const normalizeEmergencyData = (raw: any) => {
+    // If this is a real emergency response from backend
+    if (raw?.hospitals && (raw.immediate_steps || raw.steps)) {
+      return {
+        severity: raw.urgency ?? raw.severity ?? "High",
+        steps: raw.immediate_steps ?? raw.steps ?? [],
+        hospitals: (raw.hospitals ?? []).map((h: any) => ({
+          name: h.name,
+          distance:
+            typeof h.distance_km === "number"
+              ? `${h.distance_km.toFixed(1)} km`
+              : h.distance_km ?? "",
+          time:
+            typeof h.eta_minutes === "number"
+              ? `${h.eta_minutes} min`
+              : h.eta_minutes ?? "",
+          transport: raw.transport,
+          mapsUrl: h.maps_url,
+          recommended: h.recommended,
+        })),
+      };
+    }
+
+    // Fallback for health autoData (no hospitals yet)
+    return {
+      severity: raw?.severity ?? "High",
+      steps: raw?.steps ?? [],
+      hospitals: [],
+    };
+  };
+
   const analyzeEmergency = async (message: string) => {
-  const loc = await getLocation();
+    const loc = await getLocation();
 
-  const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  const res = await fetch("http://localhost:8000/analyze-emergency", {
-    method: "POST",
-    headers: {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${session?.access_token}`
-    },
-    body: JSON.stringify({
-      message,
-      latitude: loc.lat,
-      longitude: loc.lng,
-    }),
-  });
+    };
+    if (session?.access_token) {
+      headers["Authorization"] = `Bearer ${session.access_token}`;
+    }
 
-  if (!res.ok) throw new Error("Server error");
+    const res = await fetch(`${backendUrl}/analyze-emergency`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        message,
+        latitude: loc.lat,
+        longitude: loc.lng,
+      }),
+    });
 
-  return await res.json();
-};
+    if (!res.ok) throw new Error("Server error");
+
+    const data = await res.json();
+    return normalizeEmergencyData(data);
+  };
 
   useEffect(() => {
     if (autoData) {
-      setEmergencyData(autoData);
+      setEmergencyData(normalizeEmergencyData(autoData));
       setStep(2);
     }
   }, [autoData]);
@@ -204,7 +242,8 @@ export function EmergencyAssistant() {
                         <button
                           onClick={() =>
                             window.open(
-                              `https://www.google.com/maps/dir/?api=1&destination=${hospital.lat},${hospital.lng}`,
+                              hospital.mapsUrl ||
+                              "https://www.google.com/maps/search/hospital/",
                               "_blank"
                             )
                           }

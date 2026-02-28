@@ -13,18 +13,18 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
-import { useNavigate } from "react-router-dom";
-import { supabase } from "../supabaseClient";
+import { useNavigate } from "react-router";
+import { supabase, backendUrl } from "../supabaseClient";
 
 type Analysis = {
-  severity: "Low" | "Moderate" | "High" | "Critical";
+  severity: "Mild" | "Moderate" | "Serious" | "Critical";
   score: number;
   summary: string;
   steps: string[];
   specialist: {
     name: string;
     type: string;
-    rating: string;
+    rating: number;
     image: string;
   };
 };
@@ -57,115 +57,134 @@ export function HealthAI() {
 
   //  Backend API call
   const analyzeHealth = async (text: string) => {
-  const { data: { session } } = await supabase.auth.getSession();
+    const token = localStorage.getItem('careflow_token');
 
-  const res = await fetch("http://localhost:8000/analyze-health", {
-    method: "POST",
-    headers: {
+    const headers: Record<string, string> = {
       "Content-Type": "application/json",
-      "Authorization": `Bearer ${session?.access_token}`
-    },
-    body: JSON.stringify({
-      message: text,
-    }),
-  });
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
 
-  if (!res.ok) throw new Error("Server error");
+    const res = await fetch(`${backendUrl}/analyze-health`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        message: text,
+      }),
+    });
 
-  return await res.json();
-};
+    if (!res.ok) throw new Error("Server error");
+
+    return await res.json();
+  };
 
   // Handle Send
   const handleSend = async () => {
-  if (!input.trim()) return;
+    if (!input.trim()) return;
 
-  const userMsg = {
-    role: "user",
-    content: input,
-    timestamp: new Date().toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  };
+    const userMsg = {
+      role: "user",
+      content: input,
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    };
 
-  setMessages((prev) => [...prev, userMsg]);
+    setMessages((prev) => [...prev, userMsg]);
 
-  const currentInput = input;
-  setInput("");
-  setIsTyping(true);
+    const currentInput = input;
+    setInput("");
+    setIsTyping(true);
 
-  try {
-    const result = await analyzeHealth(currentInput);
-    setIsTyping(false);
+    try {
+      const result = await analyzeHealth(currentInput);
+      setIsTyping(false);
 
-    // 🔹 If AI still gathering info
-    if (!result.ready) {
+      // 🔹 If AI still gathering info
+      if (!result.ready) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: result.reply,
+            timestamp: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+          },
+        ]);
+        return;
+      }
+
+      // 🔹 If AI completed analysis
+      setAnalysis({
+        severity: result.severity,
+        score: 0,
+        summary: result.summary,
+        steps: result.steps || [],
+        specialist: {
+          name: result.specialist?.name ?? "Specialist doctor",
+          type: result.specialist?.type ?? "Relevant specialist",
+          rating: result.specialist?.rating ?? 4.5,
+          image:
+            "https://images.unsplash.com/photo-1559839734-2b71ea197ec2",
+        },
+      });
+
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: result.reply,
+          content:
+            result.reply ||
+            "Thank you for the details. I've completed your assessment. Please review the panel.",
           timestamp: new Date().toLocaleTimeString([], {
             hour: "2-digit",
             minute: "2-digit",
           }),
         },
       ]);
-      return;
+
+      // Save last assessment for Dashboard (local demo persistence)
+      try {
+        localStorage.setItem(
+          "careflow:last_health_assessment",
+          JSON.stringify({
+            at: Date.now(),
+            severity: result.severity,
+            summary: result.summary,
+            steps: result.steps || [],
+            reply: result.reply || "",
+          }),
+        );
+      } catch { }
+
+      // Auto redirect if Critical
+      if (result.severity === "Critical") {
+        navigate("/emergency", { state: { autoData: result } });
+      }
+    } catch {
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "AI service is currently unavailable.",
+          timestamp: new Date().toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        },
+      ]);
     }
-
-    // 🔹 If AI completed analysis
-    setAnalysis({
-      severity: result.severity,
-      score: 0,
-      summary: result.summary,
-      steps: result.steps,
-      specialist: {
-        name: result.specialist.name,
-        type: result.specialist.type,
-        rating: result.specialist.rating,
-        image:
-          "https://images.unsplash.com/photo-1559839734-2b71ea197ec2",
-      },
-    });
-
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content:
-          "Thank you for the details. I've completed your assessment. Please review the panel.",
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      },
-    ]);
-
-    // Auto redirect if Critical
-    if (result.severity === "Critical") {
-      navigate("/emergency", { state: { autoData: result } });
-    }
-  } catch {
-    setIsTyping(false);
-    setMessages((prev) => [
-      ...prev,
-      {
-        role: "assistant",
-        content: "AI service is currently unavailable.",
-        timestamp: new Date().toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        }),
-      },
-    ]);
-  }
-};
+  };
 
   return (
-    <div className="h-full flex flex-col lg:flex-row gap-6">
+    <div className="h-full max-w-4xl mx-auto flex flex-col">
       {/* Chat Section */}
-      <div className="flex-1 flex flex-col bg-white rounded-3xl border shadow-sm overflow-hidden min-h-[500px]">
+      <div className="flex-1 flex flex-col bg-white rounded-3xl border shadow-lg overflow-hidden min-h-[500px]">
         <header className="px-6 py-4 border-b flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
@@ -237,15 +256,15 @@ export function HealthAI() {
               </div>
               <div className="bg-white border px-4 py-3 rounded-2xl">
                 {isTyping && (
-  <div className="flex gap-3 max-w-[85%]">
-    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
-      <Sparkles size={16} />
-    </div>
-    <div className="bg-white border px-4 py-3 rounded-2xl animate-pulse">
-      CareFlow AI is thinking...
-    </div>
-  </div>
-)}
+                  <div className="flex gap-3 max-w-[85%]">
+                    <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center">
+                      <Sparkles size={16} />
+                    </div>
+                    <div className="bg-white border px-4 py-3 rounded-2xl animate-pulse">
+                      CareFlow AI is thinking...
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -273,74 +292,6 @@ export function HealthAI() {
         </div>
       </div>
 
-      {/* Analysis Panel */}
-      <AnimatePresence>
-        {analysis && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="hidden xl:flex flex-col w-[400px] bg-white rounded-3xl border shadow-sm overflow-hidden"
-          >
-            <div
-              className={cn(
-                "p-6 text-white",
-                analysis.severity === "Critical"
-                  ? "bg-red-600"
-                  : analysis.severity === "Moderate"
-                  ? "bg-blue-600"
-                  : "bg-neutral-900"
-              )}
-            >
-              <h3 className="text-xl font-bold">Health Assessment</h3>
-            </div>
-
-            <div className="p-6 space-y-6 overflow-y-auto">
-              <div>
-                <p className="text-sm font-bold mb-2">
-                  Severity: {analysis.severity}
-                </p>
-                <p className="text-sm text-neutral-600">
-                  {analysis.summary}
-                </p>
-              </div>
-
-              <div>
-                <h4 className="font-bold mb-3 flex items-center gap-2">
-                  <ClipboardList size={16} /> Recommended Actions
-                </h4>
-                <ul className="space-y-2">
-                  {analysis.steps.map((step, idx) => (
-                    <li key={idx} className="text-sm text-neutral-600">
-                      {idx + 1}. {step}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <div>
-                <h4 className="font-bold mb-3 flex items-center gap-2">
-                  <Stethoscope size={16} /> Suggested Specialist
-                </h4>
-                <div className="flex items-center gap-3">
-                  <ImageWithFallback 
-                      src={analysis.specialist.image} 
-                      alt="Doctor" 
-                    />
-                  <div>
-                    <p className="font-bold text-sm">
-                      {analysis.specialist.name}
-                    </p>
-                    <p className="text-xs text-neutral-500">
-                      {analysis.specialist.type} •{" "}
-                      {analysis.specialist.rating}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

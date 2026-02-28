@@ -1,7 +1,12 @@
 fastapi
 uvicorn
 python-dotenv
-google-generativeai
+google-genai
+pillow
 pydantic
 python-multipart
 supabase
+paddleocr
+paddlepaddle
+opencv-python-headless
+numpy

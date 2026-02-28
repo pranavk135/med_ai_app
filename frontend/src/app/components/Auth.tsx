@@ -1,8 +1,15 @@
 import React, { useState } from "react";
-import { supabase, getServerUrl } from "../supabaseClient";
-import { publicAnonKey } from "../../../utils/supabase/info";
+import { supabase } from "../supabaseClient";
 import { toast } from "sonner";
-import { Heart, Mail, Lock, User, ArrowRight, Loader2, ShieldCheck, Sparkles, AlertCircle } from "lucide-react";
+import {
+  Heart,
+  Mail,
+  Lock,
+  User,
+  Loader2,
+  ShieldCheck,
+  Sparkles,
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 export function Auth() {
@@ -33,44 +40,52 @@ export function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isForgotPassword) return handleForgotPassword(e);
+
+    if (isForgotPassword) {
+      return handleForgotPassword(e);
+    }
+
     setLoading(true);
 
     try {
-  if (isLogin) {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-    if (error) {
-      if (error.message.includes("Invalid login credentials")) {
-        throw new Error("Incorrect email or password. Please double-check your credentials.");
+        if (error) {
+          if (error.message.includes("Invalid login credentials")) {
+            throw new Error(
+              "Incorrect email or password. Please double-check your credentials.",
+            );
+          }
+          throw error;
+        }
+
+        toast.success("Welcome back to CareFlow AI!");
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              name: name,
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        toast.success("Account created successfully! Please check your email to confirm your account.");
+        setIsLogin(true);
       }
-      throw error;
+    } catch (error: any) {
+      toast.error(error.message || "Authentication failed");
+    } finally {
+      setLoading(false);
     }
-
-    toast.success("Welcome back to CareFlow AI!");
-
-  } else {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          name: name,
-        },
-      },
-    });
-
-    if (error) throw error;
-
-    toast.success("Account created successfully!");
-  }
-
-} catch (error: any) {
-  toast.error(error.message || "Authentication failed");
-}
+  };
 
   return (
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-6 relative overflow-hidden">
@@ -227,4 +242,4 @@ export function Auth() {
       </div>
     </div>
   );
-}}
+}

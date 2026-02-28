@@ -1,14 +1,14 @@
-import React, { useState } from "react";
-import { 
-  Pill, 
-  MapPin, 
-  Search, 
-  ChevronRight, 
-  Calendar, 
-  Clock, 
-  ClipboardCheck, 
-  User, 
-  Phone, 
+import React, { useRef, useState } from "react";
+import {
+  Pill,
+  MapPin,
+  Search,
+  ChevronRight,
+  Calendar,
+  Clock,
+  ClipboardCheck,
+  User,
+  Phone,
   ExternalLink,
   Plus,
   ArrowRight,
@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import { supabase, backendUrl } from "../supabaseClient";
 
 const PHARMACIES = [
   { name: 'Health Plus Pharmacy', distance: '0.8 km', address: '123 Medical Way', status: 'Open now', rating: 4.9, openUntil: '10:00 PM', image: 'https://images.unsplash.com/photo-1586015555751-63bb77f4322a?w=400&h=400&fit=crop' },
@@ -29,14 +30,65 @@ const PHARMACIES = [
   { name: 'CureWell Pharmacy', distance: '2.1 km', address: '789 Central Ave', status: 'Closed', rating: 4.6, openUntil: '06:00 PM', image: 'https://images.unsplash.com/photo-1547489432-cf93fa6c71ee?w=400&h=400&fit=crop' },
 ];
 
-const PRESCRIPTIONS = [
+const INITIAL_PRESCRIPTIONS = [
   { id: 'rx-1', med: 'Metformin 500mg', dosage: '1 tablet twice daily', doctor: 'Dr. Sarah Chen', date: 'Feb 15, 2026', refills: 2, status: 'Active' },
   { id: 'rx-2', med: 'Vitamin D3 2000IU', dosage: '1 softgel daily', doctor: 'Dr. John Doe', date: 'Jan 10, 2026', refills: 0, status: 'Completed' },
 ];
 
 export function Telemedicine() {
   const [activeTab, setActiveTab] = useState<'prescriptions' | 'pharmacies'>('prescriptions');
-  const [selectedRx, setSelectedRx] = useState<string | null>('rx-1');
+  const [prescriptions, setPrescriptions] = useState<any[]>(() => {
+    const saved = localStorage.getItem('careflow_prescriptions');
+    if (saved) {
+      try { return JSON.parse(saved); } catch (e) { }
+    }
+    return INITIAL_PRESCRIPTIONS;
+  });
+
+  const [selectedRx, setSelectedRx] = useState<string | null>(prescriptions[0]?.id || null);
+  const [scanResult, setScanResult] = useState<any | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      setScanResult(null);
+
+      const token = localStorage.getItem('careflow_token');
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch(`${backendUrl}/scan-prescription`, {
+        method: "POST",
+        headers,
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error("Scan failed");
+      }
+
+      const data = await res.json();
+      setScanResult(data);
+    } catch {
+      setScanResult({ error: "Unable to scan prescription. Please try again." });
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -50,9 +102,9 @@ export function Telemedicine() {
           <h2 className="text-4xl font-black text-neutral-900 tracking-tight leading-tight">Telemedicine & Pharmacy</h2>
           <p className="text-neutral-500 font-medium text-lg max-w-lg">Manage your prescriptions and find authorized pharmacies nearby.</p>
         </div>
-        
+
         <div className="bg-neutral-100 p-1.5 rounded-2xl flex items-center shadow-inner self-start md:self-auto">
-          <button 
+          <button
             onClick={() => setActiveTab('prescriptions')}
             className={cn(
               "px-8 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all active:scale-95",
@@ -61,7 +113,7 @@ export function Telemedicine() {
           >
             My Prescriptions
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab('pharmacies')}
             className={cn(
               "px-8 py-3 rounded-xl text-sm font-black uppercase tracking-widest transition-all active:scale-95",
@@ -75,7 +127,7 @@ export function Telemedicine() {
 
       <AnimatePresence mode="wait">
         {activeTab === 'prescriptions' ? (
-          <motion.div 
+          <motion.div
             key="prescriptions"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -91,14 +143,27 @@ export function Telemedicine() {
                   </div>
                   Medication Records
                 </h3>
-                <button className="text-blue-600 text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all group">
-                  New Order <Plus size={16} className="group-hover:rotate-90 transition-transform" />
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-blue-600 text-xs font-black uppercase tracking-widest flex items-center gap-2 hover:gap-3 transition-all group"
+                  >
+                    Scan Prescription
+                    <Plus size={16} className="group-hover:rotate-90 transition-transform" />
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </div>
               </div>
 
               <div className="space-y-4">
-                {PRESCRIPTIONS.map((rx) => (
-                  <div 
+                {prescriptions.map((rx) => (
+                  <div
                     key={rx.id}
                     onClick={() => setSelectedRx(rx.id)}
                     className={cn(
@@ -140,7 +205,7 @@ export function Telemedicine() {
 
               {/* Mock Prescription Details */}
               {selectedRx && (
-                <motion.section 
+                <motion.section
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
                   className="bg-black text-white rounded-[2.5rem] p-10 shadow-2xl shadow-blue-900/10 overflow-hidden relative border border-white/5"
@@ -153,7 +218,7 @@ export function Telemedicine() {
                           Authentic Digital Script
                         </div>
                         <h3 className="text-3xl md:text-4xl font-black leading-tight tracking-tight">
-                          {PRESCRIPTIONS.find(r => r.id === selectedRx)?.med}
+                          {prescriptions.find(r => r.id === selectedRx)?.med}
                         </h3>
                         <p className="text-neutral-500 text-sm font-bold mt-2 uppercase tracking-widest flex items-center gap-2">
                           Record ID: <span className="text-white">{selectedRx}</span>
@@ -167,7 +232,7 @@ export function Telemedicine() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-10 border-y border-white/10 py-10">
                       <div className="space-y-2">
                         <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.2em]">Clinical Dosage</p>
-                        <p className="text-2xl font-black text-white">{PRESCRIPTIONS.find(r => r.id === selectedRx)?.dosage}</p>
+                        <p className="text-2xl font-black text-white">{prescriptions.find(r => r.id === selectedRx)?.dosage}</p>
                       </div>
                       <div className="space-y-2">
                         <p className="text-[10px] text-neutral-500 font-black uppercase tracking-[0.2em]">Logistics Schedule</p>
@@ -197,6 +262,82 @@ export function Telemedicine() {
                   </div>
                   <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-blue-600/10 blur-[100px] rounded-full" />
                 </motion.section>
+              )}
+
+              {/* OCR result panel */}
+              {uploading && (
+                <div className="mt-4 text-sm text-blue-600 font-bold">
+                  Scanning prescription...
+                </div>
+              )}
+              {scanResult && !uploading && (
+                <section className="mt-6 bg-white border border-neutral-200 rounded-3xl p-8 space-y-6 shadow-xl shadow-blue-500/5 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-3xl rounded-full -mr-16 -mt-16" />
+
+                  <div className="relative z-10 flex items-center justify-between">
+                    <h4 className="font-black text-lg text-neutral-900 flex items-center gap-3">
+                      <div className="p-2 bg-blue-50 text-blue-600 rounded-xl">
+                        <Sparkles size={20} />
+                      </div>
+                      AI Prescription Extract
+                    </h4>
+
+                    {!("error" in scanResult) && (
+                      <button
+                        onClick={() => {
+                          const newRecords = (scanResult.medications || []).map((m: any, i: number) => ({
+                            id: `rx-scan-${Date.now()}-${i}`,
+                            med: m.name,
+                            dosage: m.dosage,
+                            doctor: scanResult.doctor_name || "Extracted CareFlow Doc",
+                            date: scanResult.date || new Date().toLocaleDateString(),
+                            refills: m.refills ? parseInt(m.refills) : 1,
+                            status: "Active"
+                          }));
+
+                          setPrescriptions(prev => {
+                            const updated = [...newRecords, ...prev];
+                            localStorage.setItem('careflow_prescriptions', JSON.stringify(updated));
+                            return updated;
+                          });
+
+                          setScanResult(null);
+                        }}
+                        className="bg-black text-white px-6 py-2.5 rounded-xl font-bold text-sm shadow-xl active:scale-95 transition-all flex items-center gap-2"
+                      >
+                        <Plus size={16} /> Save to Records
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="relative z-10">
+                    {"error" in scanResult ? (
+                      <p className="text-sm font-bold text-red-600 bg-red-50 p-4 rounded-xl border border-red-100">{scanResult.error}</p>
+                    ) : (
+                      <div className="space-y-4">
+                        <div className="flex items-center gap-4 text-sm font-bold text-neutral-600 bg-neutral-50 p-4 rounded-xl">
+                          <span className="flex items-center gap-2"><User size={16} className="text-blue-500" /> {scanResult.doctor_name || "Unknown Doctor"}</span>
+                          <span className="flex items-center gap-2"><Calendar size={16} className="text-blue-500" /> {scanResult.date || "Unknown Date"}</span>
+                        </div>
+                        <ul className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          {(scanResult.medications || []).map((m: any, idx: number) => (
+                            <li key={idx} className="bg-white border-2 border-neutral-100 rounded-2xl p-5 hover:border-blue-100 transition-colors shadow-sm">
+                              <p className="font-black text-lg text-neutral-900">{m.name}</p>
+                              <div className="mt-3 space-y-1">
+                                <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Dosage</p>
+                                <p className="text-sm font-medium text-blue-700">{m.dosage}</p>
+                              </div>
+                              <div className="mt-3 space-y-1">
+                                <p className="text-xs font-bold text-neutral-500 uppercase tracking-widest">Instructions</p>
+                                <p className="text-xs font-medium text-neutral-600">{m.instructions}</p>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </section>
               )}
             </div>
 
@@ -255,7 +396,7 @@ export function Telemedicine() {
             </div>
           </motion.div>
         ) : (
-          <motion.div 
+          <motion.div
             key="pharmacies"
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -266,9 +407,9 @@ export function Telemedicine() {
             <div className="lg:col-span-2 space-y-8">
               <div className="relative group">
                 <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-neutral-400 group-focus-within:text-blue-600 transition-colors" size={24} />
-                <input 
-                  type="text" 
-                  placeholder="Enter city, pharmacy name or zip code..." 
+                <input
+                  type="text"
+                  placeholder="Enter city, pharmacy name or zip code..."
                   className="w-full bg-white border-2 border-neutral-100 rounded-[2rem] pl-16 pr-8 py-6 text-lg font-medium focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-xl shadow-neutral-100/50"
                 />
               </div>
@@ -278,9 +419,9 @@ export function Telemedicine() {
                   <div key={i} className="bg-white border border-neutral-100 rounded-[2.5rem] p-8 shadow-sm hover:border-blue-200 hover:shadow-2xl hover:shadow-blue-100/50 transition-all group flex flex-col md:flex-row items-center justify-between cursor-pointer gap-6">
                     <div className="flex items-center gap-8 w-full">
                       <div className="w-24 h-24 rounded-3xl overflow-hidden shadow-xl flex-shrink-0 border-4 border-white ring-1 ring-neutral-100">
-                      <ImageWithFallback 
-                        src={p.image} 
-                        alt={p.name} 
+                        <ImageWithFallback
+                          src={p.image}
+                          alt={p.name}
                         />
                       </div>
                       <div className="space-y-2 flex-1">
@@ -347,7 +488,7 @@ export function Telemedicine() {
                 </div>
                 <div className="absolute top-0 right-0 w-48 h-48 bg-blue-600/10 blur-3xl rounded-full -mr-24 -mt-24" />
               </section>
-              
+
               <div className="p-8 bg-white border border-neutral-100 rounded-[2.5rem] space-y-6">
                 <h4 className="font-black text-neutral-900 text-lg uppercase tracking-widest">Pharmacy Connect</h4>
                 <div className="space-y-4">
@@ -381,19 +522,19 @@ function cn(...inputs: any[]) {
 
 function Navigation({ size, fill, className }: { size: number, fill?: string, className?: string }) {
   return (
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      width={size} 
-      height={size} 
-      viewBox="0 0 24 24" 
-      fill={fill || "none"} 
-      stroke="currentColor" 
-      strokeWidth="2" 
-      strokeLinecap="round" 
-      strokeLinejoin="round" 
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={fill || "none"}
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
       className={className}
     >
-      <polygon points="3 11 22 2 13 21 11 13 3 11"/>
+      <polygon points="3 11 22 2 13 21 11 13 3 11" />
     </svg>
   );
 }

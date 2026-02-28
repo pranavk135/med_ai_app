@@ -1,21 +1,27 @@
-from fastapi import Request, HTTPException
-from supabase import create_client
 import os
+from dataclasses import dataclass
+from typing import Optional
 
-supabase = create_client(
-    os.getenv("SUPABASE_URL"),
-    os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-)
+from fastapi import HTTPException, Request
+from app.routes.auth import get_db
 
-async def verify_user(request: Request):
-    token = request.headers.get("Authorization")
+@dataclass(frozen=True)
+class AuthUser:
+    id: str
+    email: Optional[str] = None
 
-    if not token:
-        raise HTTPException(status_code=401, detail="Missing token")
-
-    try:
-        token = token.replace("Bearer ", "")
-        user = supabase.auth.get_user(token)
-        return user
-    except:
-        raise HTTPException(status_code=401, detail="Invalid token")
+async def verify_user(request: Request) -> AuthUser:
+    """Verifies the local access token from the Authorization header."""
+    auth_header = request.headers.get("Authorization")
+    token = (auth_header or "").replace("Bearer ", "").strip()
+    with get_db() as conn:
+        if token:
+            user = conn.execute("SELECT id, email FROM users WHERE token = ?", (token,)).fetchone()
+            if user:
+                return AuthUser(id=user["id"], email=user["email"])
+                
+        # If no token or invalid token, fallback for dev
+        if request.url.hostname in ("localhost", "127.0.0.1"):
+            return AuthUser(id="dev_user_123", email="dev@example.com")
+            
+        raise HTTPException(status_code=401, detail="Invalid or missing token")
