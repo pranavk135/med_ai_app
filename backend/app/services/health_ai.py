@@ -1,7 +1,7 @@
 import json
 from google.genai import types
 
-from app.config import MODEL_NAME, client
+from app.config import CHAT_MODEL_NAME, client
 from app.memory.convo_store import get_history, add_message
 
 SYSTEM_PROMPT = """
@@ -173,7 +173,7 @@ def analyze_health(user_id: str, message: str):
     else:
         try:
             response = client.models.generate_content(
-                model=MODEL_NAME,
+                model=CHAT_MODEL_NAME,
                 contents=f"{SYSTEM_PROMPT}\n\nConversation:\n{conversation}",
                 config=types.GenerateContentConfig(
                     temperature=0.3,

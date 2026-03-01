@@ -2,10 +2,10 @@ import json
 from google.genai import types
 from PIL import Image
 import io
-from app.config import MODEL_NAME, client
+from app.config import VISION_MODEL_NAME, vision_client
 
 def extract_text(image_bytes):
-    if not client:
+    if not vision_client:
         return {
             "error": "Gemini API Configuration missing. Please set GEMINI_API_KEY in your .env file."
         }
@@ -36,8 +36,8 @@ Format EXACTLY like this:
 }
 """
         # Pass both the strict JSON prompt AND the image itself directly into Gemini's eyes
-        llm_response = client.models.generate_content(
-            model=MODEL_NAME,
+        llm_response = vision_client.models.generate_content(
+            model=VISION_MODEL_NAME,
             contents=[prompt, img],
             config=types.GenerateContentConfig(
                 temperature=0.0,
