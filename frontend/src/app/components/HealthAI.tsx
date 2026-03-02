@@ -10,6 +10,7 @@ import {
   History,
   ClipboardList,
   Stethoscope,
+  RotateCcw,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
@@ -32,17 +33,16 @@ type Analysis = {
 export function HealthAI() {
   const navigate = useNavigate();
 
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content:
-        "Hello! I'm your CareFlow AI Health Assistant. How can I help you today?",
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-    },
-  ]);
+  const initialMessage = {
+    role: "assistant",
+    content: "Hello! I'm your CareFlow AI Health Assistant. How can I help you today?",
+    timestamp: new Date().toLocaleTimeString([], {
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+  };
+
+  const [messages, setMessages] = useState([initialMessage]);
 
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -77,6 +77,35 @@ export function HealthAI() {
     if (!res.ok) throw new Error("Server error");
 
     return await res.json();
+  };
+
+  const handleClearChat = async () => {
+    const token = localStorage.getItem('careflow_token');
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    try {
+      await fetch(`${backendUrl}/clear-chat`, {
+        method: "POST",
+        headers,
+      });
+    } catch (e) {
+      console.error("Failed to clear backend chat history", e);
+    }
+
+    setMessages([
+      {
+        role: "assistant",
+        content: "I've cleared our previous conversation. What would you like to discuss now?",
+        timestamp: new Date().toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+      }
+    ]);
+    setAnalysis(null);
   };
 
   // Handle Send
@@ -197,8 +226,12 @@ export function HealthAI() {
               </span>
             </div>
           </div>
-          <button className="p-2 text-neutral-400 hover:text-neutral-600 rounded-full">
-            <History size={20} />
+          <button
+            onClick={handleClearChat}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold text-neutral-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-colors"
+          >
+            <RotateCcw size={16} />
+            New Topic
           </button>
         </header>
 

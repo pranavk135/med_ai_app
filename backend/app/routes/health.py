@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, UploadFile, File
 import time
 from app.schemas import HealthRequest
 from app.services.health_ai import analyze_health
+from app.memory.convo_store import clear_history
 from app.middleware.auth import verify_user
 
 router = APIRouter()
@@ -12,6 +13,12 @@ async def health_endpoint(req: HealthRequest, user=Depends(verify_user)):
     print("User ID:", user_id)
     print("Message:", req.message)
     return analyze_health(user_id, req.message)
+
+@router.post("/clear-chat")
+async def clear_chat_endpoint(user=Depends(verify_user)):
+    user_id = user.id
+    clear_history(user_id)
+    return {"status": "History cleared"}
 
 @router.post("/ocr")
 async def ocr_endpoint(file: UploadFile = File(...)):

@@ -104,6 +104,15 @@ class MockAuth {
   }
 
   async signOut() {
+    const token = localStorage.getItem('careflow_token');
+    if (token) {
+      try {
+        await fetch(`${backendUrl}/auth/logout?token=${token}`, { method: 'POST' });
+      } catch (e) {
+        console.error("Failed to notify backend of logout", e);
+      }
+    }
+
     localStorage.removeItem('careflow_token');
     localStorage.removeItem('careflow_user');
     this.notifyListeners('SIGNED_OUT', null);

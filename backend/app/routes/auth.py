@@ -88,3 +88,10 @@ def get_me(token: str):
         if not user:
             raise HTTPException(status_code=401, detail="Invalid token")
         return {"id": user["id"], "email": user["email"], "name": user["name"]}
+
+@router.post("/logout")
+def logout(token: str):
+    with get_db() as conn:
+        conn.execute("UPDATE users SET token = NULL WHERE token = ?", (token,))
+        conn.commit()
+    return {"status": "Logged out successfully"}

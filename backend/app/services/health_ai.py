@@ -40,6 +40,15 @@ Return EXACTLY THIS JSON:
   "explanation": "Reasoning for severity classification"
 }
 
+}
+
+If the user is asking a follow-up question, saying thanks, or changing topics AFTER an assessment is already complete:
+Return EXACTLY THIS JSON:
+{
+  "ready": false,
+  "reply": "A helpful, conversational response directly addressing their new topic or question."
+}
+
 ALWAYS RETURN VALID JSON ONLY. No markdown wrapping outside the JSON.
 """
 
@@ -53,18 +62,7 @@ def _rule_based_assessment(history_text: str) -> dict:
     user_msgs = [line.split('user:', 1)[1].strip() for line in lines if line.startswith('user:')]
     assistant_msgs = [line.split('assistant:', 1)[1].strip() for line in lines if line.startswith('assistant:')]
     
-    # If the assistant has ALREADY triaged the user, any further messages simply get a polite dismissal.
-    # We detect triage by looking for standard summary strings that get written to the history log.
-    triage_signatures = [
-        "life‑threatening emergency",
-        "urgent medical review",
-        "symptoms sound mild"
-    ]
-    if any(any(sig in msg for sig in triage_signatures) for msg in assistant_msgs):
-        return {
-            "ready": False,
-            "reply": "Thank you for the update. My initial assessment is complete. Please follow the instructions provided, monitor your symptoms, and consult a human doctor if they worsen."
-        }
+    # Removed triage lock to allow continuous conversational chatting
     
     # Evaluate context across all messages
     context_text = " ".join(user_msgs).lower()
@@ -183,7 +181,8 @@ def analyze_health(user_id: str, message: str):
             )
 
             result = json.loads(response.text or "")
-        except Exception:
+        except Exception as e:
+            print("Gemini API Error in analyze_health:", e)
             # Gemini quota / network / config issues: fall back to rule‑based logic.
             result = _rule_based_assessment(conversation)
 
