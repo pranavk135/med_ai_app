@@ -6,6 +6,7 @@ import { EmergencyAssistant } from "./components/EmergencyAssistant";
 import { Telemedicine } from "./components/Telemedicine";
 import { PatientRecords } from "./components/PatientRecords";
 import { Auth } from "./components/Auth";
+import { Profile } from "./components/Profile";
 
 export const router = createBrowserRouter([
   {
@@ -35,6 +36,10 @@ export const router = createBrowserRouter([
       {
         path: "auth",
         Component: Auth,
+      },
+      {
+        path: "profile",
+        Component: Profile,
       }
     ],
   },

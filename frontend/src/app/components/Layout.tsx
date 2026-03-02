@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router";
 import { supabase } from "../supabaseClient";
-import { 
-  LayoutDashboard, 
-  Stethoscope, 
-  AlertCircle, 
-  Pill, 
-  Bell, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Stethoscope,
+  AlertCircle,
+  Pill,
+  Bell,
+  Settings,
   User,
   Heart,
   XIcon,
@@ -84,7 +84,7 @@ export function Layout() {
                 to={item.href}
                 className={cn(
                   "flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200",
-                  isActive 
+                  isActive
                     ? isEmergency ? "bg-red-50 text-red-600 font-medium" : "bg-blue-50 text-blue-600 font-medium"
                     : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900"
                 )}
@@ -97,11 +97,11 @@ export function Layout() {
         </nav>
 
         <div className="p-4 border-t border-neutral-100 mt-auto space-y-2">
-          <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-neutral-50 cursor-pointer">
+          <Link to="/profile" className="flex items-center gap-3 p-3 rounded-xl hover:bg-neutral-50 transition-colors">
             <div className="w-10 h-10 rounded-full bg-neutral-200 overflow-hidden flex-shrink-0">
-              <img 
-                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`} 
-                alt="User" 
+              <img
+                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userName}`}
+                alt="User"
                 className="w-full h-full object-cover"
               />
             </div>
@@ -109,11 +109,11 @@ export function Layout() {
               <p className="text-sm font-semibold truncate">{userName}</p>
               <p className="text-xs text-neutral-500 truncate">Pro Member</p>
             </div>
-            <Settings size={18} className="text-neutral-400" />
-          </div>
-          
+            <Settings size={18} className="text-neutral-400 group-hover:rotate-45 transition-transform" />
+          </Link>
+
           {session ? (
-            <button 
+            <button
               onClick={handleLogout}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-neutral-500 hover:bg-neutral-100 hover:text-red-600 transition-all duration-200 font-medium"
             >
@@ -121,7 +121,7 @@ export function Layout() {
               <span className="text-sm">Sign Out</span>
             </button>
           ) : (
-            <Link 
+            <Link
               to="/auth"
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-blue-600 text-white font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition-all duration-200"
             >
@@ -143,13 +143,13 @@ export function Layout() {
             <h1 className="text-lg font-bold">CareFlow</h1>
           </div>
           <div className="flex-1 md:block hidden" />
-          
+
           <div className="flex items-center gap-4">
             <div className="hidden sm:flex items-center gap-2 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-100">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
               <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-tight">System Online</span>
             </div>
-            <button 
+            <button
               onClick={() => setShowReminders(true)}
               className="relative p-2 text-neutral-500 hover:bg-neutral-100 rounded-full transition-colors"
             >
@@ -157,10 +157,13 @@ export function Layout() {
               <span className="absolute top-2 right-2 w-2 h-2 bg-blue-600 rounded-full border-2 border-white" />
             </button>
             <div className="h-8 w-[1px] bg-neutral-200 mx-1" />
-            <button className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 transition-all">
+            <Link
+              to="/profile"
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-200 hover:border-neutral-300 hover:bg-neutral-50 transition-all"
+            >
               <User size={18} className="text-neutral-500" />
               <span className="text-sm font-medium">Profile</span>
-            </button>
+            </Link>
           </div>
         </header>
 
@@ -174,14 +177,14 @@ export function Layout() {
       <AnimatePresence>
         {showReminders && (
           <>
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowReminders(false)}
               className="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
             />
-            <motion.div 
+            <motion.div
               initial={{ x: "100%" }}
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
@@ -195,7 +198,7 @@ export function Layout() {
                   </div>
                   <h3 className="font-bold text-lg">Daily Reminders</h3>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowReminders(false)}
                   className="p-2 hover:bg-neutral-100 rounded-full transition-colors text-neutral-400 hover:text-neutral-600"
                 >
@@ -214,7 +217,7 @@ export function Layout() {
                         <span className="text-[10px] font-bold text-neutral-400 uppercase">{reminder.type}</span>
                       </div>
                       <p className="text-xs text-neutral-500 mt-0.5">{reminder.time}</p>
-                      <button 
+                      <button
                         onClick={() => handleReminderAction(reminder.id)}
                         className="mt-3 text-xs font-bold text-blue-600 flex items-center gap-1 hover:gap-2 transition-all"
                       >
@@ -245,8 +248,8 @@ export function Layout() {
               to={item.href}
               className={cn(
                 "flex flex-col items-center gap-1 transition-colors",
-                isActive 
-                  ? isEmergency ? "text-red-600" : "text-blue-600" 
+                isActive
+                  ? isEmergency ? "text-red-600" : "text-blue-600"
                   : "text-neutral-400"
               )}
             >
