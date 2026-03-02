@@ -173,7 +173,7 @@ def analyze_health(user_id: str, message: str):
     else:
         try:
             response = client.models.generate_content(
-                model=CHAT_MODEL_NAME,
+                model="gemini-2.5-flash",
                 contents=f"{SYSTEM_PROMPT}\n\nConversation:\n{conversation}",
                 config=types.GenerateContentConfig(
                     temperature=0.3,

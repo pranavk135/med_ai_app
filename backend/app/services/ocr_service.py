@@ -37,7 +37,7 @@ Format EXACTLY like this:
 """
         # Pass both the strict JSON prompt AND the image itself directly into Gemini's eyes
         llm_response = vision_client.models.generate_content(
-            model=VISION_MODEL_NAME,
+            model="gemini-2.5-flash",
             contents=[prompt, img],
             config=types.GenerateContentConfig(
                 temperature=0.0,
