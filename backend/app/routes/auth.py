@@ -1,3 +1,4 @@
+import os
 import sqlite3
 import hashlib
 import secrets
@@ -6,7 +7,9 @@ from pydantic import BaseModel
 
 router = APIRouter()
 
-DB_PATH = "healthai.db"
+# Use an absolute path based on the location of this file to ensure it works on Render
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DB_PATH = os.path.join(BASE_DIR, "healthai.db")
 
 def get_db():
     conn = sqlite3.connect(DB_PATH)
